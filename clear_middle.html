@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+</head>
+
+<body>
+
+  <script>
+    // Makes the center 106/128 pixels transparent;
+    var canvas;
+    var input = document.createElement('input');
+    var clearButton = document.createElement('button');
+    var downloadButton = document.createElement('button');
+    var filename = 'drawing';
+
+    input.type = 'file';
+    input.addEventListener('change', function() {
+      console.log("INPUT CHANGED");
+      if (input.files.length !== 1) {
+        return;
+      }
+      let image = input.files[0];
+      filename = input.files[0].name.split('.')[0];
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        let img = new Image();
+
+        img.onload = function() {
+          if (canvas) {
+            document.body.removeChild(canvas);
+          }
+          canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          let ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, img.width, img.height);
+          document.body.appendChild(canvas);
+          document.body.appendChild(document.createElement('br'));
+          clearButton.innerHTML = 'Clear middle ' + canvas.width * 106 / 128 + ' px';
+          document.body.appendChild(clearButton);
+          document.body.appendChild(document.createElement('br'));
+          document.body.appendChild(downloadButton);
+          document.body.appendChild(document.createElement('br'));
+        }
+        img.src = e.target.result;
+      }
+      reader.readAsDataURL(image);
+    });
+    input.innerHTML = 'select file';
+    document.body.appendChild(input);
+    document.body.appendChild(document.createElement('br'));
+
+
+    clearButton.innerHTML = 'Clear middle 106 px';
+    clearButton.onclick = function() {
+      if (canvas == null) {
+        return;
+      }
+      let ctx = canvas.getContext('2d');
+      let amount = canvas.width * 106 / 128;
+      ctx.clearRect(canvas.width / 2 - amount / 2, canvas.height / 2 - amount / 2, amount, amount);
+    }
+
+    downloadButton.innerHTML = 'download';
+    downloadButton.onclick = function() {
+      if (canvas == null) {
+        return;
+      }
+      let a = document.createElement('a');
+      a.href = canvas.toDataURL();
+      a.download = filename;
+      a.click();
+    }
+  </script>
+</body>
+
+</html>
