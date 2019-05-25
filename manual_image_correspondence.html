@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Manual Image Correspondence</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    canvas {
+      border: 0;
+      max-width: 100%;
+    }
+
+    #mainCanvas,
+    #overlayCanvas,
+    #temporaryCanvas {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translate(-50%, 0%);
+    }
+
+    #overlayCanvas {
+      z-index: 2;
+    }
+
+    #canvasDiv {
+      position: relative;
+      width: 100%;
+      margin: auto;
+    }
+  </style>
+</head>
+
+<body>
+  Upload 2 images with the same dimensions<br>
+  Then drag lines from one image to the next to get their coordinates<br>
+  <input type="file" id="fileinput1" accept="image/*"><br>
+  <input type="file" id="fileinput2" accept="image/*"><br>
+  <div id="canvasDiv">
+    <canvas id="mainCanvas"></canvas>
+    <canvas id="overlayCanvas"></canvas>
+    <canvas id="temporaryCanvas"></canvas>
+    <canvas id="fakeCanvas"></canvas>
+  </div>
+  <div id="matchesDiv">
+    <div>
+      Left Image Coordinate, Right Image Coordinate
+    </div>
+  </div>
+  <script>
+    let input1 = document.getElementById('fileinput1');
+    let input2 = document.getElementById('fileinput2');
+    let mainCanvas = document.getElementById("mainCanvas");
+    let overlayCanvas = document.getElementById("overlayCanvas");
+    let temporaryCanvas = document.getElementById("temporaryCanvas");
+    let fakeCanvas = document.getElementById("fakeCanvas");
+    let matchesDiv = document.getElementById('matchesDiv');
+    let colors = [
+      "#CD6ED4", "#01A58D", "#FCC37C", "#F7715D", "#594A46",
+      "#21FF00", "#0D25FF"
+    ];
+    let colorIndex = 0;
+
+    input1.addEventListener('change', function() {
+      if (input1.files.length !== 1) {
+        return;
+      }
+      let image = input1.files[0];
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        let img = new Image();
+        img.onload = function() {
+          if (mainCanvas.width != 2 * img.width) {
+            temporaryCanvas.width =
+              fakeCanvas.width =
+              overlayCanvas.width =
+              mainCanvas.width = 2 * img.width;
+          }
+          if (mainCanvas.height != img.height) {
+            temporaryCanvas.height =
+              fakeCanvas.height =
+              overlayCanvas.height =
+              mainCanvas.height = img.height;
+          }
+          let ctx = mainCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+        }
+        img.src = e.target.result;
+      }
+      reader.readAsDataURL(image);
+    });
+
+    input2.addEventListener('change', function() {
+      if (input2.files.length !== 1) {
+        return;
+      }
+      let image = input2.files[0];
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        let img = new Image();
+        img.onload = function() {
+          if (mainCanvas.width != 2 * img.width) {
+            temporaryCanvas.width =
+              fakeCanvas.width =
+              overlayCanvas.width =
+              mainCanvas.width = 2 * img.width;
+          }
+          if (mainCanvas.height != img.height) {
+            temporaryCanvas.height =
+              fakeCanvas.height =
+              overlayCanvas.height =
+              mainCanvas.height = img.height;
+          }
+          let ctx = mainCanvas.getContext('2d');
+          ctx.drawImage(img, img.width, 0);
+        }
+        img.src = e.target.result;
+      }
+      reader.readAsDataURL(image);
+    });
+
+    let mousedownPos, mousemovePos;
+    overlayCanvas.addEventListener('mousedown', function(e) {
+      mousedownPos = [
+        (e.offsetX / overlayCanvas.clientWidth) * overlayCanvas.width,
+        (e.offsetY / overlayCanvas.clientHeight) * overlayCanvas.height
+      ];
+    });
+    overlayCanvas.addEventListener('mousemove', function(e) {
+      if (mousedownPos == null) {
+        return;
+      }
+      mousemovePos = [
+        (e.offsetX / overlayCanvas.clientWidth) * overlayCanvas.width,
+        (e.offsetY / overlayCanvas.clientHeight) * overlayCanvas.height
+      ];
+
+      let ctx = temporaryCanvas.getContext('2d');
+      ctx.strokeStyle = colors[colorIndex];
+      ctx.clearRect(0, 0, temporaryCanvas.width, temporaryCanvas.height);
+      ctx.beginPath();
+      ctx.arc(mousedownPos[0], mousedownPos[1], 10, 0, 2 * Math.PI);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      let differenceVector = [mousemovePos[0] - mousedownPos[0], mousemovePos[1] - mousedownPos[1]];
+      let differenceAngle = differenceVector[0] == 0 ?
+        Math.PI / 2 - Math.PI * (differenceVector[1] < 0) :
+        Math.atan(differenceVector[1] / differenceVector[0]) + Math.PI * (differenceVector[0] < 0);
+      ctx.moveTo(
+        mousedownPos[0] + 10 * Math.cos(differenceAngle),
+        mousedownPos[1] + 10 * Math.sin(differenceAngle)
+      );
+      ctx.lineTo(
+        mousemovePos[0] + 10 * Math.cos(differenceAngle + Math.PI),
+        mousemovePos[1] + 10 * Math.sin(differenceAngle + Math.PI)
+      );
+      ctx.lineWidth = 6;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(mousemovePos[0], mousemovePos[1], 10, 0, 2 * Math.PI);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+    overlayCanvas.addEventListener('mouseup', function(e) {
+      if (mousedownPos == null) {
+        return;
+      }
+      let mouseupPos = [
+        (e.offsetX / overlayCanvas.clientWidth) * overlayCanvas.width,
+        (e.offsetY / overlayCanvas.clientHeight) * overlayCanvas.height
+      ];
+
+      let ctx = temporaryCanvas.getContext('2d');
+      ctx.clearRect(0, 0, temporaryCanvas.width, temporaryCanvas.height);
+
+      let leftCoordinate, rightCoordinate;
+      if (mousedownPos[0] < overlayCanvas.width / 2 && mouseupPos[0] >= overlayCanvas.width / 2) {
+        leftCoordinate = Object.assign({}, mousedownPos);
+        rightCoordinate = Object.assign({}, mouseupPos);
+      } else if (mouseupPos[0] < overlayCanvas.width / 2 && mousedownPos[0] >= overlayCanvas.width / 2) {
+        leftCoordinate = Object.assign({}, mouseupPos);
+        rightCoordinate = Object.assign({}, mousedownPos);
+      }
+
+      if (leftCoordinate && rightCoordinate) {
+
+        let ctx = overlayCanvas.getContext('2d');
+        ctx.strokeStyle = colors[colorIndex];
+        ctx.beginPath();
+        ctx.arc(mousedownPos[0], mousedownPos[1], 10, 0, 2 * Math.PI);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.beginPath();
+        let differenceVector = [mouseupPos[0] - mousedownPos[0], mouseupPos[1] - mousedownPos[1]];
+        let differenceAngle = differenceVector[0] == 0 ?
+          Math.PI / 2 - Math.PI * (differenceVector[1] < 0) :
+          Math.atan(differenceVector[1] / differenceVector[0]) + Math.PI * (differenceVector[0] < 0);
+        ctx.moveTo(
+          mousedownPos[0] + 10 * Math.cos(differenceAngle),
+          mousedownPos[1] + 10 * Math.sin(differenceAngle)
+        );
+        ctx.lineTo(
+          mouseupPos[0] + 10 * Math.cos(differenceAngle + Math.PI),
+          mouseupPos[1] + 10 * Math.sin(differenceAngle + Math.PI)
+        );
+        ctx.lineWidth = 6;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(mouseupPos[0], mouseupPos[1], 10, 0, 2 * Math.PI);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        rightCoordinate[0] -= overlayCanvas.width / 2;
+        let div = document.createElement('div');
+        div.style.color = colors[colorIndex];
+        div.innerHTML = '(' + leftCoordinate[0] + ', ' + leftCoordinate[1] + '), (' + rightCoordinate[0] + ', ' +
+          rightCoordinate[1] + ')';
+        matchesDiv.appendChild(div);
+
+        colorIndex = (colorIndex + 1) % colors.length;
+      }
+
+      mousedownPos = null;
+    });
+  </script>
+</body>
+
+</html>
